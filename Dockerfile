@@ -1,4 +1,4 @@
-FROM ruby:2.5.8-slim-buster as base
+FROM ruby:2.7.2-slim-buster as base
 
 ARG VCS_REF
 ARG GH_USER=puppetlabs
