@@ -1,6 +1,6 @@
 # specifying the platform here allows builds to work
 # correctly on Apple Silicon machines
-FROM --platform=amd64 ruby:2.7.2-slim-buster as base
+FROM --platform=amd64 puppet/pdk as base
 
 ARG VCS_REF
 ARG GH_USER=puppetlabs
@@ -19,25 +19,24 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
-RUN apt-get install -y apt-utils \
-  && apt-get upgrade -y \
-  && apt-get install -y --no-install-recommends curl libxml2-dev libxslt1-dev g++ gcc git gnupg2 make openssh-client ruby-dev wget zlib1g-dev \
-  && wget https://apt.puppet.com/puppet-tools-release-buster.deb \
-  && dpkg -i puppet-tools-release-buster.deb \
-  && apt-get update -qq \
-  && apt-get install -y --no-install-recommends pdk \
+RUN apt-get upgrade -y \
+  && apt-get install -y --no-install-recommends curl libxml2-dev libxslt1-dev g++ gcc git gnupg2 make openssh-client wget zlib1g-dev \
   && apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/*
 
 RUN ln -s /bin/mkdir /usr/bin/mkdir
 
+# Use the PDK in unintended ways....
+RUN ln -s /opt/puppetlabs/pdk/private/ruby/2.7.2/bin/bundle /usr/local/bin/bundle \
+  && ln -s /opt/puppetlabs/pdk/private/ruby/2.7.2/bin/gem /usr/local/bin/gem \
+  && ln -s /opt/puppetlabs/pdk/private/ruby/2.7.2/bin/rake /usr/local/bin/rake \
+  && ln -s /opt/puppetlabs/pdk/private/ruby/2.7.2/bin/ruby /usr/local/bin/ruby
+
 RUN groupadd --gid 1001 puppetdev \
-  && useradd --uid 1001 --gid puppetdev --create-home puppetdev
+  && useradd --uid 1001 --gid puppetdev --create-home -s /bin/bash puppetdev
 
 # Prep for non-root user
-RUN gem install bundler \
-  && chown -R puppetdev:puppetdev /usr/local/bundle \
-  && mkdir /setup \
+RUN mkdir /setup \
   && chown -R puppetdev:puppetdev /setup \
   && mkdir /repo \
   && chown -R puppetdev:puppetdev /repo
@@ -50,10 +49,7 @@ WORKDIR /setup
 ADD Gemfile* /setup/
 COPY Rakefile /Rakefile
 
-RUN bundle config set system 'true' \
-  && bundle config set jobs 3 \
-  && bundle install \
-  && rm -f /home/puppetdev/.bundle/config
+RUN bundle install
 
 WORKDIR /repo
 
